@@ -4,9 +4,27 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const db = require('./database/dbConfig.js');
 const Users = require('./users/users-model.js');
+const session = require('express-session')
+
+
 
 const server = express();
 
+//get session 
+const sessionConfig = {
+    name: 'notsession', // default is connect.sid
+    secret: 'keep this a secret',
+    cookie: {
+        httpOnly: true,
+        maxAge: 1000 * 60 * 2,
+        secure: false,
+    },
+    resave: false,
+    saveUninitialized: true,
+
+}
+
+server.use(session(sessionConfig));
 server.use(helmet());
 server.use(express.json());
 server.use(cors());
@@ -41,6 +59,9 @@ server.post('/api/login', (req, res) => {
         .first()
         .then(user => {
             if (user && bcrypt.compareSync(password, user.password)) {
+                //the cookie is sent by the express-session library
+                req.session.username = user.username;
+
                 res.status(200).json({ message: `Welcome ${user.username}!` });
             } else {
                 res.status(401).json({ message: 'Invalid Credentials' });
@@ -49,6 +70,22 @@ server.post('/api/login', (req, res) => {
         .catch(error => {
             res.status(500).json(error);
         });
+});
+
+// implement log out end point.
+
+server.get('/logout', (req, res) => {
+    if(req.session) {
+        req.session.destroy( err => {
+            if(err) {
+                res.send('there was an error')
+            } else {
+                res.send('bye')
+            }
+        });
+    } else {
+        res.end();
+    }
 });
 
 // GET / api / users
